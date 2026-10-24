@@ -5,6 +5,17 @@
 
 import os
 
+# Простой загрузчик .env (ключ=значение, без зависимостей).
+# Секреты (токен) клади в файл .env рядом с config.py — он в .gitignore.
+_ENV_FILE = os.path.join(os.path.dirname(__file__), ".env")
+if os.path.exists(_ENV_FILE):
+    for _line in open(_ENV_FILE, encoding="utf-8"):
+        _line = _line.strip()
+        if not _line or _line.startswith("#") or "=" not in _line:
+            continue
+        _key, _, _value = _line.partition("=")
+        os.environ.setdefault(_key.strip(), _value.strip())
+
 # Местоположение и часовой пояс
 CITY = "Хабаровск"
 LATITUDE = 48.48
