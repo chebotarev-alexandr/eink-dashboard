@@ -20,6 +20,8 @@ SERVERS = [
 
 # Планировщик: события владельца из Remember_bot
 PLANNER_API_URL = "http://132.243.115.71:8091/api/my-events/"
+# Погода: проксируется через Remember_bot (open-meteo из РФ блокируется напрямую)
+WEATHER_URL = "http://132.243.115.71:8091/api/weather/"
 # Токен задай через переменную окружения (не коммить в репозиторий):
 #   export PLANNER_API_TOKEN=...
 PLANNER_API_TOKEN = os.environ.get("PLANNER_API_TOKEN", "")
