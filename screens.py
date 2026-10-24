@@ -10,7 +10,7 @@ def collect(screen_id):
 
         return {
             "type": "clock_weather",
-            "weather": weather.fetch(config.LATITUDE, config.LONGITUDE, config.TIMEZONE),
+            "weather": weather.fetch(config.LATITUDE, config.LONGITUDE),
             "ip": network.get_ip(),
         }
 
