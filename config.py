@@ -39,8 +39,13 @@ EPD_MODEL = "2in13_V4"  # 2in13 / 2in13_V2 / 2in13_V3 / 2in13_V4
 
 # Ротация экранов: (id, сколько секунд показывать, как часто обновлять данные в секундах)
 SCREENS = [
-    {"id": "clock_weather", "title": "Погода", "duration": 60, "refresh": 1800},
-    {"id": "servers", "title": "Серверы", "duration": 45, "refresh": 300},
-    {"id": "planner", "title": "Сегодня", "duration": 60, "refresh": 300},
-    {"id": "satellites", "title": "Спутники", "duration": 45, "refresh": 21600},
+    {"id": "clock_weather", "title": "Погода", "duration": 5, "refresh": 1800},
+    {"id": "servers", "title": "Серверы", "duration": 5, "refresh": 300},
+    {"id": "planner", "title": "Сегодня", "duration": 5, "refresh": 300},
+    {"id": "satellites", "title": "Спутники", "duration": 5, "refresh": 21600},
 ]
+
+# Веб-морда (та же собранная инфа в браузере)
+WEB_ENABLED = True
+WEB_HOST = "0.0.0.0"
+WEB_PORT = 8080

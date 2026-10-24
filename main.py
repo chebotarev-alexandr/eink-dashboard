@@ -1,14 +1,12 @@
-"""Точка входа: бесконечный цикл ротации экранов.
+"""Точка входа: цикл ротации экранов + веб-морда.
 
 Режимы (--mode):
   console — текст в консоль (проверка логики, без железа и Pillow)
   png     — отрисовка в PNG-файлы в каталоге frames/ (проверка отрисовки)
   eink    — вывод на Waveshare 2.13" (требует SPI + библиотеку Waveshare)
 
-Примеры:
-  python main.py --mode console
-  python main.py --mode png
-  python main.py --mode eink
+Веб-морда поднимается всегда, если config.WEB_ENABLED = True:
+  http://<ip>:8080  — страница;  /api/data — JSON со всеми данными.
 """
 
 import argparse
@@ -43,7 +41,35 @@ def main():
 
         renderer = EinkRenderer(display, timezone=config.TIMEZONE)
 
-    cache = {}  # screen_id -> (timestamp, data)
+    cache = {}     # screen_id -> (timestamp, data)
+    snapshot = {}  # screen_id -> data (для веб-морды)
+
+    def collect_screen(screen):
+        sid = screen["id"]
+        cached = cache.get(sid)
+        now = time.time()
+        if cached is not None and now - cached[0] < screen["refresh"]:
+            return cached[1]
+        try:
+            data = collect(sid)
+            cache[sid] = (now, data)
+        except Exception as exc:  # noqa: BLE001 — не роняем цикл
+            print(f"[{sid}] ошибка сбора данных: {exc}")
+            data = cached[1] if cached else {"type": sid, "error": str(exc)}
+        return data
+
+    # Веб-морда
+    web_server = None
+    if getattr(config, "WEB_ENABLED", False) and not args.once:
+        from web import start_web_server
+
+        web_server = start_web_server(lambda: snapshot, host=config.WEB_HOST, port=config.WEB_PORT)
+        print(f"Веб-морда: http://<ip>:{config.WEB_PORT}")
+
+    # Прогрев: собрать всё сразу, чтобы веб-морда была полной с первой секунды
+    for screen in config.SCREENS:
+        snapshot[screen["id"]] = collect_screen(screen)
+
     running = True
 
     def _stop(signum, frame):
@@ -57,25 +83,12 @@ def main():
 
     while running:
         for screen in config.SCREENS:
-            sid = screen["id"]
-            cached = cache.get(sid)
-            now = time.time()
-
-            if cached is None or now - cached[0] >= screen["refresh"]:
-                try:
-                    data = collect(sid)
-                    cache[sid] = (now, data)
-                except Exception as exc:  # noqa: BLE001 — не роняем цикл
-                    print(f"[{sid}] ошибка сбора данных: {exc}")
-                    data = cached[1] if cached else {"type": sid, "error": str(exc)}
-            else:
-                data = cached[1]
-
+            data = collect_screen(screen)
+            snapshot[screen["id"]] = data
             try:
                 renderer.render(data)
             except Exception as exc:  # noqa: BLE001
-                print(f"[{sid}] ошибка отрисовки: {exc}")
-
+                print(f"[{screen['id']}] ошибка отрисовки: {exc}")
             if args.once:
                 continue
             time.sleep(screen["duration"])
