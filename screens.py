@@ -6,11 +6,12 @@ import config
 def collect(screen_id):
     """Собирает данные экрана. Возвращает dict с ключом `type` и данными."""
     if screen_id == "clock_weather":
-        from providers import weather
+        from providers import network, weather
 
         return {
             "type": "clock_weather",
             "weather": weather.fetch(config.LATITUDE, config.LONGITUDE, config.TIMEZONE),
+            "ip": network.get_ip(),
         }
 
     if screen_id == "servers":

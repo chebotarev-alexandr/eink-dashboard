@@ -35,6 +35,8 @@ class ConsoleRenderer(Renderer):
             w = data["weather"]
             print(f"{w['icon']} {w['weather']}, {w['temp']}°C (ощущается {w['feels_like']}°C)")
             print(f"Макс {w['high']}° / мин {w['low']}° · влажность {w['humidity']}% · ветер {w['wind']} м/с")
+            if data.get("ip"):
+                print(f"IP: {data['ip']}")
         elif t == "servers":
             for s in data["servers"]:
                 status = "OK  " if s["ok"] else "FAIL"
@@ -116,13 +118,16 @@ class EinkRenderer(Renderer):
         big = self._font(34, bold=True)
         body = self._font(12)
         small = self._font(11)
+        tiny = self._font(10)
 
         temp = f"{w['temp']}°"
-        d.text((MARGIN, CONTENT_Y - 2), temp, font=big, fill=0)
+        d.text((MARGIN, CONTENT_Y - 4), temp, font=big, fill=0)
         d.text((MARGIN + big.getlength(temp) + 10, CONTENT_Y + 8), w["weather"], font=body, fill=0)
 
-        d.text((MARGIN, 74), f"Ощущается {w['feels_like']}°  ·  ветер {w['wind']} м/с", font=small, fill=0)
-        d.text((MARGIN, 92), f"Макс {w['high']}° / мин {w['low']}°  ·  влажность {w['humidity']}%", font=small, fill=0)
+        d.text((MARGIN, 70), f"Ощущается {w['feels_like']}°  ·  ветер {w['wind']} м/с", font=small, fill=0)
+        d.text((MARGIN, 88), f"Макс {w['high']}° / мин {w['low']}°  ·  влажность {w['humidity']}%", font=small, fill=0)
+        if data.get("ip"):
+            d.text((MARGIN, 106), f"IP {data['ip']}", font=tiny, fill=0)
         return img
 
     def _draw_servers(self, data):
