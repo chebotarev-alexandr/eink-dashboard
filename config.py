@@ -32,6 +32,10 @@ SATELLITES = [
 SATELLITES_PASS_COUNT = 3
 SATELLITES_AHEAD_DAYS = 2
 
+# E-ink дисплей: Waveshare 2.13" (250×122, ч/б).
+# Версия платы — если картинка «мусорная»/инвертированная, смени на другую.
+EPD_MODEL = "2in13_V4"  # 2in13 / 2in13_V2 / 2in13_V3 / 2in13_V4
+
 # Ротация экранов: (id, сколько секунд показывать, как часто обновлять данные в секундах)
 SCREENS = [
     {"id": "clock_weather", "title": "Погода", "duration": 60, "refresh": 1800},
