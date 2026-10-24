@@ -1,7 +1,6 @@
 """Погода через Open-Meteo (бесплатно, без ключа)."""
 
-import json
-import urllib.request
+from . import http
 
 # WMO-коды погоды → (описание, эмодзи)
 WEATHER = {
@@ -42,8 +41,7 @@ def fetch(latitude, longitude, timezone):
         "&daily=temperature_2m_max,temperature_2m_min,weather_code"
         f"&timezone={timezone}&forecast_days=1"
     )
-    with urllib.request.urlopen(url, timeout=10) as resp:
-        raw = json.loads(resp.read().decode("utf-8"))
+    raw = http.get_json(url, timeout=20, retries=2)
 
     cur = raw.get("current", {})
     day = raw.get("daily", {})

@@ -1,16 +1,15 @@
 """События владельца из Remember_bot (/api/my-events/) + выборка «на сегодня»."""
 
-import json
 import urllib.parse
-import urllib.request
 from datetime import datetime
 from zoneinfo import ZoneInfo
+
+from . import http
 
 
 def fetch(api_url, token):
     url = api_url + "?" + urllib.parse.urlencode({"token": token})
-    with urllib.request.urlopen(url, timeout=10) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+    return http.get_json(url, timeout=10, retries=2)
 
 
 def todays_events(events, timezone, now=None):

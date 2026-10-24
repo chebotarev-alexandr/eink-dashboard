@@ -15,7 +15,6 @@ TIMEZONE = "Asia/Vladivostok"
 SERVERS = [
     {"name": "Сайт code-orbit", "url": "https://code-orbit.ru"},
     {"name": "Бот напоминаний", "url": "http://132.243.115.71:8091/admin/"},
-    {"name": "Чат-мост", "url": "http://132.243.115.71:9091/health"},
     {"name": "Vaultwarden", "url": "https://vaultwarden-personal.space"},
 ]
 

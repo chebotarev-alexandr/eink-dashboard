@@ -1,30 +1,33 @@
-"""Пролёты спутников над точкой (skyfield + TLE с celestrak, без ключей).
+"""Пролёты спутников над точкой (skyfield + TLE с запасными источниками).
 
-Точное предсказание по TLE: время восхода, максимальная высота над горизонтом
-и длительность пролёта. Работает для любого спутника по NORAD ID.
+TLE берём с celestrak, при сбое (блокировка/500) — с tle.ivanstanojevic.me
+(любой NORAD id). Точное предсказание: время восхода, макс. высота, длительность.
 """
 
-import urllib.request
 from datetime import datetime, timedelta, timezone as dt_timezone
 from zoneinfo import ZoneInfo
 
+from . import http
+
 
 def _fetch_tle(norad_id):
-    url = f"https://celestrak.org/NORAD/elements/gp.php?CATNR={norad_id}&FORMAT=TLE"
-    req = urllib.request.Request(url, headers={"User-Agent": "eink-dashboard"})
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        text = resp.read().decode("utf-8")
-    lines = text.strip().splitlines()
-    if len(lines) < 3:
-        raise ValueError(f"Пустой TLE для NORAD {norad_id}")
-    return lines[0].strip(), lines[1].strip(), lines[2].strip()
+    # 1) celestrak — обычный текст
+    try:
+        url = f"https://celestrak.org/NORAD/elements/gp.php?CATNR={norad_id}&FORMAT=TLE"
+        text = http.get_text(url, timeout=15, retries=1)
+        lines = text.strip().splitlines()
+        if len(lines) >= 3:
+            return lines[0].strip(), lines[1].strip(), lines[2].strip()
+    except Exception:
+        pass
+
+    # 2) запасной источник (JSON, любой NORAD id)
+    data = http.get_json(f"https://tle.ivanstanojevic.me/api/tle/{norad_id}", timeout=15, retries=1)
+    return data.get("name", "SAT"), data["line1"], data["line2"]
 
 
 def next_passes(latitude, longitude, tz_name, satellites, count, ahead_days):
-    """Ближайшие пролёты всех спутников, отсортированные по времени.
-
-    satellites: [{"name": "МКС", "norad_id": 25544}, ...]
-    """
+    """Ближайшие пролёты всех спутников, отсортированные по времени."""
     from skyfield.api import EarthSatellite, load, wgs84
 
     ts = load.timescale()
