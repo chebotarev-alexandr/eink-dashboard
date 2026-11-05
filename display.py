@@ -19,6 +19,9 @@ class ImageDisplay:
         image.save(path)
         return path
 
+    def show_partial(self, image):
+        return self.show(image)
+
 
 class EinkDisplay:
     """Waveshare 2.13" (250×122, ч/б). Драйвер подключается лениво.
@@ -62,6 +65,10 @@ class EinkDisplay:
     def show(self, image):
         epd = self._load()
         epd.display(epd.getbuffer(image))
+
+    def show_partial(self, image):
+        epd = self._load()
+        epd.displayPartial(epd.getbuffer(image))
 
     def sleep(self):
         if self._epd is not None:

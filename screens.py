@@ -43,4 +43,20 @@ def collect(screen_id):
             ),
         }
 
+    if screen_id == "home":
+        from providers import network, weather, planner
+
+        w = weather.fetch(
+            config.LATITUDE, config.LONGITUDE, config.PLANNER_API_TOKEN, config.WEATHER_URL
+        )
+        p = planner.fetch(config.PLANNER_API_URL, config.PLANNER_API_TOKEN)
+        events = planner.todays_events(p.get("events", []), p.get("timezone", config.TIMEZONE))
+        return {
+            "type": "home",
+            "weather": w,
+            "ip": network.get_ip(),
+            "events": events,
+            "timezone": p.get("timezone", config.TIMEZONE),
+        }
+
     raise ValueError(f"Неизвестный экран: {screen_id}")

@@ -26,6 +26,10 @@ class Renderer:
     def render(self, data: dict) -> None:
         raise NotImplementedError
 
+    def render_partial(self, data: dict) -> None:
+        # По умолчанию — то же, что render (ConsoleRenderer/PNG не различают).
+        self.render(data)
+
 
 class ConsoleRenderer(Renderer):
     """Текстовая заглушка для проверки логики сбора и ротации."""
@@ -54,6 +58,13 @@ class ConsoleRenderer(Renderer):
                 print("  Нет ближайших пролётов")
             for p in data["passes"]:
                 print(f"  🛰 {p['name']}: {p['time']} · макс {p['max_elevation']}° · ~{p['duration_min']} мин")
+        elif t == "home":
+            w = data.get("weather") or {}
+            print(f"  Погода: {w.get('weather', '—')}, {w.get('temp', '—')}° (ощущ. {w.get('feels_like', '—')}°), ветер {w.get('wind', '—')} м/с")
+            if not data.get("events"):
+                print("  На сегодня пусто")
+            for e in data.get("events", []):
+                print(f"  {e['time']} · {e['text']}")
         else:
             print("  (нет отрисовки для этого типа)")
 
@@ -109,13 +120,21 @@ class EinkRenderer(Renderer):
             return self._draw_planner(data)
         if t == "satellites":
             return self._draw_satellites(data)
+        if t == "home":
+            return self._draw_home(data)
         raise ValueError(f"Неизвестный тип экрана: {t}")
 
-    def render(self, data):
+    def _prepare(self, data):
         img = self.draw(data)
         if getattr(config, "ROTATE_180", False):
             img = img.rotate(180)
-        self.display.show(img)
+        return img
+
+    def render(self, data):
+        self.display.show(self._prepare(data))
+
+    def render_partial(self, data):
+        self.display.show_partial(self._prepare(data))
 
     def _draw_clock_weather(self, data):
         w = data["weather"]
@@ -174,4 +193,37 @@ class EinkRenderer(Renderer):
             line = f"{p['name']}  {p['time']}  ↑{p['max_elevation']}°  {p['duration_min']} мин"
             d.text((MARGIN, y), self._truncate(line, body, WIDTH - 2 * MARGIN), font=body, fill=0)
             y += ROW_H
+        return img
+
+    def _draw_home(self, data):
+        """Один экран: время + погода + планы на сегодня."""
+        w = data.get("weather") or {}
+        events = data.get("events", [])
+        img = Image.new("1", (WIDTH, HEIGHT), 255)
+        d = ImageDraw.Draw(img)
+
+        now = datetime.now(self.timezone).strftime("%H:%M")
+        big = self._font(30, bold=True)
+        small = self._font(12)
+        body = self._font(11)
+        tiny = self._font(10)
+
+        d.text((MARGIN, 2), now, font=big, fill=0)
+        d.text((MARGIN + big.getlength(now) + 10, 18), "Хабаровск", font=small, fill=0)
+
+        d.text((MARGIN, 44), f"{w.get('weather', '—')} · {w.get('temp', '—')}°", font=body, fill=0)
+        d.text((MARGIN, 58), f"ощущ. {w.get('feels_like', '—')}° · ветер {w.get('wind', '—')} м/с", font=body, fill=0)
+
+        d.line([(MARGIN, 72), (WIDTH - MARGIN, 72)], fill=0, width=1)
+
+        y = 78
+        if not events:
+            d.text((MARGIN, y), "На сегодня пусто", font=body, fill=0)
+        else:
+            for e in events:
+                text = self._truncate(f"{e['time']}  {e['text']}", tiny, WIDTH - 2 * MARGIN)
+                d.text((MARGIN, y), text, font=tiny, fill=0)
+                y += 15
+                if y > HEIGHT - 10:
+                    break
         return img

@@ -5,6 +5,10 @@
   png     — отрисовка в PNG-файлы в каталоге frames/ (проверка отрисовки)
   eink    — вывод на Waveshare 2.13" (требует SPI + библиотеку Waveshare)
 
+Домашний режим (config.HOME_MODE = True): один экран (погода + время + планы),
+время обновляется частичным рефрешем (без чёрной вспышки), экран целиком — раз
+в FULL_REFRESH_SEC.
+
 Веб-морда поднимается всегда, если config.WEB_ENABLED = True:
   http://<ip>:8080  — страница;  /api/data — JSON со всеми данными.
 """
@@ -79,6 +83,38 @@ def main():
     signal.signal(signal.SIGTERM, _stop)
     signal.signal(signal.SIGINT, _stop)
 
+    # ------------------------------------------------------ Домашний режим
+    if getattr(config, "HOME_MODE", False):
+        home = {"id": "home", "refresh": config.FULL_REFRESH_SEC}
+        last_full = 0.0
+        print(f"Домашний режим: время каждые {config.TIME_REFRESH_SEC}с (частично), "
+              f"полный рефреш каждые {config.FULL_REFRESH_SEC}с")
+        while running:
+            data = collect_screen(home)
+            snapshot["home"] = data
+            now = time.time()
+            try:
+                if now - last_full >= config.FULL_REFRESH_SEC or args.once:
+                    # полное обновление: свежая погода/планы + очистка от призраков
+                    for screen in config.SCREENS:
+                        snapshot[screen["id"]] = collect_screen(screen)
+                    renderer.render(data)
+                    last_full = now
+                else:
+                    renderer.render_partial(data)
+            except Exception as exc:  # noqa: BLE001
+                print(f"[home] ошибка отрисовки: {exc}")
+            if args.once:
+                break
+            time.sleep(config.TIME_REFRESH_SEC)
+
+        display = getattr(renderer, "display", None)
+        if display is not None and hasattr(display, "sleep"):
+            display.sleep()
+        print("Панель остановлена.")
+        return
+
+    # ------------------------------------------------------ Ротация экранов
     print(f"Панель запущена ({args.mode}). Экраны: {[s['id'] for s in config.SCREENS]}")
 
     while running:
