@@ -10,6 +10,8 @@ from zoneinfo import ZoneInfo
 
 from PIL import Image, ImageDraw, ImageFont
 
+import config
+
 WIDTH, HEIGHT = 250, 122
 MARGIN = 8
 CONTENT_Y = 28
@@ -110,7 +112,10 @@ class EinkRenderer(Renderer):
         raise ValueError(f"Неизвестный тип экрана: {t}")
 
     def render(self, data):
-        self.display.show(self.draw(data))
+        img = self.draw(data)
+        if getattr(config, "ROTATE_180", False):
+            img = img.rotate(180)
+        self.display.show(img)
 
     def _draw_clock_weather(self, data):
         w = data["weather"]
