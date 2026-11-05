@@ -6,8 +6,9 @@
 Только стандартная библиотека Python — как и e-ink панель.
 
 Настройка (переменные окружения или файл .env рядом со скриптом):
-  MONITOR_BOT_TOKEN  — токен Telegram-бота (создай через @BotFather)
-  MONITOR_CHAT_ID    — твой chat_id (куда слать алерты)
+  MONITOR_RELAY_URL     — URL tg-relay на Амстердаме (он шлёт в Telegram;
+                          из РФ малинка до api.telegram.org не достучится)
+  MONITOR_RELAY_SECRET  — общий секрет tg-relay
 
 Серверы задаются списком SERVERS ниже.
 
@@ -71,19 +72,20 @@ def save_state(state):
     os.replace(tmp, STATE_FILE)
 
 
-def send_telegram(text):
-    token = os.environ.get("MONITOR_BOT_TOKEN", "")
-    chat_id = os.environ.get("MONITOR_CHAT_ID", "")
-    if not token or not chat_id:
-        print("нет MONITOR_BOT_TOKEN / MONITOR_CHAT_ID — пропускаю отправку")
+def send_alert(text):
+    relay_url = os.environ.get("MONITOR_RELAY_URL", "http://132.243.115.71:9090/notify")
+    secret = os.environ.get("MONITOR_RELAY_SECRET", "")
+    if not secret:
+        print("нет MONITOR_RELAY_SECRET — пропускаю отправку")
         return False
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
-    data = urllib.parse.urlencode({"chat_id": chat_id, "text": text}).encode()
+    payload = json.dumps({"secret": secret, "text": text}).encode("utf-8")
+    req = urllib.request.Request(relay_url, data=payload,
+                                 headers={"Content-Type": "application/json"}, method="POST")
     try:
-        with urllib.request.urlopen(urllib.request.Request(url, data=data), timeout=10):
-            return True
+        with urllib.request.urlopen(req, timeout=10) as r:
+            return r.status == 200
     except Exception as exc:
-        print(f"не удалось отправить в Telegram: {exc}")
+        print(f"не удалось отправить алерт через tg-relay: {exc}")
         return False
 
 
@@ -111,7 +113,7 @@ def main():
         if dry:
             print("[dry-run] отправил бы:\n" + text)
         else:
-            send_telegram(text)
+            send_alert(text)
 
     save_state(new_state)
     print("проверено: " + " · ".join(statuses))
