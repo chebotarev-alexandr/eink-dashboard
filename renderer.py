@@ -30,6 +30,10 @@ class Renderer:
         # По умолчанию — то же, что render (ConsoleRenderer/PNG не различают).
         self.render(data)
 
+    def render_partial_time(self, data: dict) -> None:
+        # По умолчанию — обычное частичное обновление.
+        self.render_partial(data)
+
 
 class ConsoleRenderer(Renderer):
     """Текстовая заглушка для проверки логики сбора и ротации."""
@@ -124,17 +128,37 @@ class EinkRenderer(Renderer):
             return self._draw_home(data)
         raise ValueError(f"Неизвестный тип экрана: {t}")
 
-    def _prepare(self, data):
-        img = self.draw(data)
+    def _rotate(self, img):
         if getattr(config, "ROTATE_180", False):
-            img = img.rotate(180)
+            return img.rotate(180)
         return img
+
+    def _prepare(self, data):
+        return self._rotate(self.draw(data))
 
     def render(self, data):
         self.display.show(self._prepare(data))
 
     def render_partial(self, data):
         self.display.show_partial(self._prepare(data))
+
+    def render_partial_time(self, data):
+        """Двухшаговое частичное обновление часов.
+
+        Сначала только глифы времени заливаются белым (призрак старой цифры уходит
+        на белый фон), затем поверх рисуется новое время.
+        """
+        now = datetime.now(self.timezone).strftime("%H:%M")
+        font = self._font(30, bold=True)
+        left, top, right, bottom = font.getbbox(now)
+        pad = 1
+        clear_img = self._home_image(data, now)
+        ImageDraw.Draw(clear_img).rectangle(
+            (MARGIN + left - pad, 2 + top - pad, MARGIN + right + pad, 2 + bottom + pad),
+            fill=255,
+        )
+        self.display.show_partial(self._rotate(clear_img))
+        self.display.show_partial(self._rotate(self._home_image(data, now)))
 
     def _draw_clock_weather(self, data):
         w = data["weather"]
@@ -197,12 +221,15 @@ class EinkRenderer(Renderer):
 
     def _draw_home(self, data):
         """Один экран: время + погода + планы на сегодня."""
+        return self._home_image(data, datetime.now(self.timezone).strftime("%H:%M"))
+
+    def _home_image(self, data, now):
+        """Отрисовывает домашний экран с заданным временем и возвращает Image."""
         w = data.get("weather") or {}
         events = data.get("events", [])
         img = Image.new("1", (WIDTH, HEIGHT), 255)
         d = ImageDraw.Draw(img)
 
-        now = datetime.now(self.timezone).strftime("%H:%M")
         big = self._font(30, bold=True)
         small = self._font(12)
         body = self._font(11)

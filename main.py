@@ -6,8 +6,8 @@
   eink    — вывод на Waveshare 2.13" (требует SPI + библиотеку Waveshare)
 
 Домашний режим (config.HOME_MODE = True): один экран (погода + время + планы),
-время обновляется частичным рефрешем (без чёрной вспышки); полный рефреш — только
-при смене >1 цифры или «плохом» переходе (см. refresh.py).
+время обновляется частичным рефрешем в два шага (блок часов заливается белым,
+затем рисуется новое время); полный рефреш — раз в FULL_REFRESH_SEC.
 
 Веб-морда поднимается всегда, если config.WEB_ENABLED = True:
   http://<ip>:8080  — страница;  /api/data — JSON со всеми данными.
@@ -16,8 +16,6 @@
 import argparse
 import signal
 import time
-from datetime import datetime
-from zoneinfo import ZoneInfo
 
 import config
 from screens import collect
@@ -87,24 +85,22 @@ def main():
 
     # ------------------------------------------------------ Домашний режим
     if getattr(config, "HOME_MODE", False):
-        from refresh import needs_full_refresh
-
-        home = {"id": "home", "refresh": getattr(config, "HOME_DATA_REFRESH_SEC", 600)}
-        last_time = ""
-        print(f"Домашний режим: время каждые {config.TIME_REFRESH_SEC}с; "
-              f"полный рефреш — при смене >1 цифры или «плохом» переходе")
+        home = {"id": "home", "refresh": config.FULL_REFRESH_SEC}
+        last_full = 0.0
+        print(f"Домашний режим: время каждые {config.TIME_REFRESH_SEC}с (в два шага), "
+              f"полный рефреш каждые {config.FULL_REFRESH_SEC}с")
         while running:
             data = collect_screen(home)
             snapshot["home"] = data
-            now_str = datetime.now(ZoneInfo(config.TIMEZONE)).strftime("%H:%M")
+            now = time.time()
             try:
-                if needs_full_refresh(last_time, now_str) or args.once:
+                if now - last_full >= config.FULL_REFRESH_SEC or args.once:
                     renderer.render(data)
+                    last_full = now
                 else:
-                    renderer.render_partial(data)
+                    renderer.render_partial_time(data)
             except Exception as exc:  # noqa: BLE001
                 print(f"[home] ошибка отрисовки: {exc}")
-            last_time = now_str
             if args.once:
                 break
             time.sleep(config.TIME_REFRESH_SEC)
